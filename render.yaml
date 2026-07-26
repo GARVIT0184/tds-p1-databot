@@ -1,1 +1,18 @@
 
+services:
+  - type: web
+    name: data-analyst-telegram-bot
+    env: docker
+
+    plan: free
+
+    autoDeploy: true
+
+    healthCheckPath: /
+
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
