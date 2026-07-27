@@ -1,26 +1,53 @@
-from fastapi import FastAPI, Request
-from telegram_bot import handle_message
-import uvicorn
+import os
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Data Analyst Telegram Bot")
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
+
+from telegram_bot import start_polling
+from logger import LOG_FILE
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start Telegram polling in background
+    start_polling()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
 async def root():
-    return {"status": "running"}
-
-
-@app.post("/webhook")
-async def webhook(request: Request):
-    data = await request.json()
-    await handle_message(data)
     return {"ok": True}
 
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False
+@app.get("/health")
+async def health():
+    return {
+        "ok": True,
+        "status": "running"
+    }
+
+
+@app.get("/run.jsonl")
+async def runlog():
+    if not os.path.exists(LOG_FILE):
+        open(LOG_FILE, "w").close()
+
+    return FileResponse(
+        LOG_FILE,
+        media_type="application/json"
+    )
+
+
+@app.exception_handler(Exception)
+async def all_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "ok": False,
+            "error": str(exc)
+        }
     )
